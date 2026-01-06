@@ -3,6 +3,8 @@
 #' @param input,output,session Internal parameters for {shiny}.
 #' @import shiny
 #' @importFrom visNetwork renderVisNetwork visNetworkProxy visUpdateNodes 
+#' @importFrom igraph V
+#' @importFrom SummarizedExperiment rowData colData assayNames
 #' @importFrom KEGGemUP kegg_to_graph map_results_to_graph
 #' @importFrom golem get_golem_options
 #' @noRd
@@ -16,6 +18,9 @@ app_server <- function(input, output, session) {
   # Update selectors
   updateSelectInput(session, "de_selector", choices = de_list)
   updateSelectInput(session, "pathway_selector", choices = pathway_list)
+  updateSelectInput(session, "id_selector", choices = SummarizedExperiment::colnames(rowData(data)))
+  updateSelectInput(session, "group_selector", choices = SummarizedExperiment::colnames(colData(data)))
+  updateSelectInput(session, "assay_selector", choices = SummarizedExperiment::assayNames(data))
 
   # Track selected nodes in the graph
   selected_ids <- reactiveVal(character())
@@ -87,24 +92,24 @@ app_server <- function(input, output, session) {
 
   # Render selected features
   selected_features <- reactive({
-    req(selected_ids())
+    req(selected_ids(), input$id_selector)
     g <- graph_data()
     # get node IDs from igraph
     node_ids <- V(g)$name # assuming your node ids are stored in 'name'
     kegg_attr <- V(g)$KEGG # KEGG attributes
     # Filter KEGG attributes for selected nodes
     kegg_ids <- kegg_attr[node_ids %in% selected_ids(), drop = FALSE]
-    get_features_from_selected_ids(data, kegg_ids)
+    get_features_from_selected_ids(data, kegg_ids, input$id_selector)
   })
 
   # Render plot based on selected features
   output$feature_plot <- renderPlot({
     features <- selected_features()
-    req(features)
+    req(features, input$group_selector, input$id_selector, input$assay_selector)
     if (length(features) == 1) {
-      plot_expression(unlist(features), data, row_column = "SYMBOL")
+      plot_expression(unlist(features), data, row_column = input$id_selector, group_var = input$group_selector, selected_assay= input$assay_selector)
     } else if (length(features) > 1) {
-      plot_heatmap(features, data, row_column = "SYMBOL")
+      plot_heatmap(features, data, row_column = input$id_selector, group_var = input$group_selector, selected_assay = input$assay_selector)
     }
   })
 }

@@ -16,6 +16,9 @@ app_ui <- function(request) {
       sidebar = sidebar(
         width = 400,
         title = "Feature Plot",
+        selectInput("group_selector", "Select rowData col:", choices = NULL),
+        selectInput("id_selector", "Select ID:", choices = NULL),
+        selectInput("assay_selector", "Select Assay:", choices = NULL),
         plotOutput("feature_plot")
       ),
       layout_columns(

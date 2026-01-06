@@ -1,4 +1,4 @@
-get_features_from_selected_ids <- function(dde, ids) {
+get_features_from_selected_ids <- function(dde, ids, col) {
   rd <- rowData(dde)
 
   all_ids <- unlist(lapply(ids, function(id) {
@@ -6,9 +6,9 @@ get_features_from_selected_ids <- function(dde, ids) {
   }))
   
   if ("KEGG" %in% colnames(rd)) {
-    out <- rd$SYMBOL[rd$KEGG %in% all_ids]
+    out <- rd[[col]][rd$KEGG %in% all_ids]
   } else if ("ENTREZID" %in% colnames(rd)) {
-    out <- rd$SYMBOL[rd$ENTREZID %in% all_ids]
+    out <- rd[[col]][rd$ENTREZID %in% all_ids]
   } else {
     stop("Neither KEGG nor ENTREZID columns are present in rowData(dde).")
   }

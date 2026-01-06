@@ -28,17 +28,22 @@
 #' @importFrom ComplexHeatmap Heatmap
 #' @importFrom grid gpar
 #' @noRd
-plot_heatmap <- function(features, se,
-                         row_column = NULL,
-                         pathway = NULL,
-                         cluster_rows = TRUE,
-                         cluster_columns = FALSE,
-                         center_mean = TRUE,
-                         scale_row = FALSE,
-                         winsorize_threshold = NULL,
-                         plot_title = NULL,
-                         export_data = FALSE,
-                         ...) {
+plot_heatmap <- function(
+    features,
+    se,
+    row_column = NULL,
+    pathway = NULL,
+    group_var = "group",
+    group_info = TRUE,
+    cluster_rows = FALSE,
+    cluster_columns = FALSE,
+    center_mean = TRUE,
+    scale_row = FALSE,
+    winsorize_threshold = NULL,
+    plot_title = NULL,
+    export_data = FALSE,
+    selected_assay = "counts",
+    ...) {
   # parameters check
   if (is.null(features) || length(features) == 0) {
     stop("features cannot be empty or NULL")
@@ -53,11 +58,11 @@ plot_heatmap <- function(features, se,
   if (!is.null(row_column)) {
     availablefeatures <- features[features %in% rowData(se)[[row_column]]]
     feature_indices <- match(availablefeatures, rowData(se)[[row_column]])
-    heatmap_data <- assay(se)[feature_indices, , drop = FALSE]
+    heatmap_data <- assay(se, selected_assay)[feature_indices, , drop = FALSE]
     rownames(heatmap_data) <- features
   } else {
     availablefeatures <- features[features %in% rownames(se)]
-    heatmap_data <- assay(se)[availablefeatures, , drop = FALSE]
+    heatmap_data <- assay(se, selected_assay)[availablefeatures, , drop = FALSE]
   }
 
   # to avoid problems later, remove the ones non-expressed and with variance = 0
@@ -105,6 +110,23 @@ plot_heatmap <- function(features, se,
     return(NULL)
   }
 
+  if (group_info) {
+    if (!is.null(colData(se)[[group_var]])) {
+      group_factor <- as.factor(colData(se)[[group_var]])
+      group_colors <- RColorBrewer::brewer.pal(n = length(levels(group_factor)), name = "Set3")
+      names(group_colors) <- levels(group_factor)
+
+      ha_col <- ComplexHeatmap::HeatmapAnnotation(
+        df = data.frame(Group = group_factor),
+        col = list(Group = group_colors),
+        annotation_name_side = "left"
+      )
+    } else {
+      ha_col <- NULL
+    }
+  } else {
+    ha_col <- NULL
+  }
   # Generate heatmap using base R graphics
   # heatmap(
   #   x = as.matrix(heatmap_data),
@@ -137,38 +159,38 @@ plot_heatmap <- function(features, se,
   #   ...
   # )
 
-ch <- ComplexHeatmap::Heatmap(
-  matrix = as.matrix(heatmap_data),
-  column_title = title,
-  name = hm_name,
+  ch <- ComplexHeatmap::Heatmap(
+    matrix = as.matrix(heatmap_data),
+    column_title = title,
+    name = hm_name,
 
-  # Color scale
-  col = colorRampPalette(rev(brewer.pal(n = 7, name = "RdYlBu")))(100),
+    # Color scale
+    col = colorRampPalette(rev(brewer.pal(n = 7, name = "RdYlBu")))(100),
 
-  # Cell borders
-  rect_gp = grid::gpar(col = "white", lwd = 0.5),
+    # Cell borders
+    rect_gp = grid::gpar(col = "white", lwd = 0.5),
 
-  # Disable clustering and dendrograms
-  cluster_rows = FALSE,
-  cluster_columns = FALSE,
-  show_row_dend = FALSE,
-  show_column_dend = FALSE,
+    # Disable clustering and dendrograms
+    cluster_rows = cluster_rows,
+    cluster_columns = cluster_columns,
+    show_row_dend = FALSE,
+    show_column_dend = FALSE,
 
-  # Labels
-  row_labels = rownames(heatmap_data),
-  show_row_names = TRUE,
-  show_column_names = TRUE,
-  row_names_gp = grid::gpar(fontsize = 8),
-  column_names_gp = grid::gpar(fontsize = 8),
+    # Labels
+    row_labels = rownames(heatmap_data),
+    show_row_names = TRUE,
+    show_column_names = TRUE,
+    row_names_gp = grid::gpar(fontsize = 8),
+    column_names_gp = grid::gpar(fontsize = 8),
 
-  # Titles
-  column_title_gp = grid::gpar(fontsize = 12, fontface = "bold"),
+    # Titles
+    column_title_gp = grid::gpar(fontsize = 12, fontface = "bold"),
 
-  # Legend
-  show_heatmap_legend = FALSE,
-
-  ...
-)
+    # Legend
+    show_heatmap_legend = FALSE,
+    top_annotation = ha_col,
+    ...
+  )
 
   # return(ComplexHeatmap::draw(ch, merge_legend = TRUE))
   return(ch)
