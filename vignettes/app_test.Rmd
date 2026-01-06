@@ -1,0 +1,152 @@
+---
+title: "app_test"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{app_test}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+# library(KEGGemUPShiny)
+```
+
+```{r load-fake-results}
+message("--- Loading packages...")
+
+suppressPackageStartupMessages({
+  library("macrophage")
+  library("DESeq2")
+  library("org.Hs.eg.db")
+  library("AnnotationDbi")
+  library("clusterProfiler")
+  library("limma")
+  library("edgeR")
+})
+message("- Done!")
+
+# Load the macrophage dataset ---------------------------------------------------
+data(gse)
+rownames(gse) <- substr(rownames(gse), 1, 15)  # truncate rownames at 15 characters
+
+# DESeq2 analysis ---------------------------------------------------------------
+dds <- DESeqDataSet(gse, design = ~ condition)
+
+# Filter low counts
+keep <- rowSums(counts(dds) >= 10) >= 6
+dds <- dds[keep, ]
+
+dds <- DESeq(dds)
+
+# limma analysis ---------------------------------------------------------------
+condition <- factor(colData(gse)[, "condition_name"])
+design <- model.matrix(~0 + condition)
+
+contrast.matrix <- makeContrasts(
+  IFNg_vs_naive = conditionIFNg - conditionnaive,
+  levels = design
+)
+
+dge <- DGEList(assay(gse))
+dge <- calcNormFactors(dge)
+
+cutoff <- 1
+drop <- which(apply(cpm(dge), 1, max) < cutoff)
+dge <- dge[-drop, ]
+
+voom_mat <- voom(dge, design, plot = FALSE)
+fit <- lmFit(voom_mat, design)
+fit2 <- contrasts.fit(fit, contrast.matrix)
+fit2 <- eBayes(fit2)  # Empirical Bayes moderation
+
+# Gene annotation ---------------------------------------------------------------
+
+anns <- AnnotationDbi::select(
+  org.Hs.eg.db,
+  keys = rownames(dds),
+  columns = c("SYMBOL", "ENTREZID"),
+  keytype = "ENSEMBL",
+  multiVals = "first"
+)
+
+# DESeq2 results ---------------------------------------------------------------
+res_macrophage_IFNg_vs_naive_dds <- results(
+  dds,
+  contrast = c("condition", "IFNg", "naive"),
+  lfcThreshold = 1,
+  alpha = 0.05
+)
+
+summary(res_macrophage_IFNg_vs_naive_dds) 
+
+res_macrophage_IFNg_vs_naive_dds$SYMBOL <- rowData(dds)$SYMBOL
+res_macrophage_IFNg_vs_naive_dds$ENTREZID <- anns$ENTREZID[match(rownames(res_macrophage_IFNg_vs_naive_dds), anns$ENSEMBL)]
+
+# limma results ---------------------------------------------------------------
+res_macrophage_IFNg_vs_naive_limma <- topTable(
+  fit2,
+  coef = "IFNg_vs_naive",
+  adjust = "fdr",
+  number = Inf,
+  confint = TRUE
+)
+
+res_macrophage_IFNg_vs_naive_limma$ENTREZID <- anns$ENTREZID[match(rownames(res_macrophage_IFNg_vs_naive_limma), anns$ENSEMBL)]
+
+# Enrichment analysis ----------------------------------------------------------
+de_entrez_IFNg_vs_naive_genes <- anns $ENTREZID[
+  (!is.na(res_macrophage_IFNg_vs_naive_dds$padj)) &
+    (res_macrophage_IFNg_vs_naive_dds$padj <= 0.05)
+]
+
+res_enrich_IFNg_vs_naive_dds <- enrichKEGG(
+  gene = de_entrez_IFNg_vs_naive_genes,
+  organism = "hsa",
+  pvalueCutoff = 0.05
+)@result
+
+```
+
+```{r}
+
+de_results_list <-list(
+  trans_limma = list(
+    de_table = data.frame(res_macrophage_IFNg_vs_naive_limma[]),
+    value_column = "logFC",
+    feature_column = "ENTREZID"
+  ),
+  trans_deseq = list(
+    de_table = data.frame(res_macrophage_IFNg_vs_naive_dds),
+    value_column = "log2FoldChange",
+    feature_column = "ENTREZID"
+    )
+)
+de_results_limma <-  data.frame(res_macrophage_IFNg_vs_naive_limma)[res_macrophage_IFNg_vs_naive_limma$adj.P.Val < 0.05, ]
+pathway <- rownames(res_enrich_IFNg_vs_naive_dds)[6]
+```
+
+
+```{r use-package}
+devtools::load_all("/Users/edoardofilippi/Development/Projects/KEGGemUP")
+devtools::load_all()
+KEGGemUPShiny(
+  pathway_list = rownames(res_enrich_IFNg_vs_naive_dds)[1:10],
+  de_results_list = dde
+)
+```
+
+```{r use-package-2}
+devtools::load_all()
+KEGGemUPShiny(
+  pathway_list = rownames(res_enrich_IFNg_vs_naive_dds)[1:10],
+  de_results_list = de_results_limma
+)
+```
+

@@ -1,0 +1,1 @@
+devtools::load_all("/Users/edoardofilippi/Development/Projects/KEGGemUP/")

@@ -1,0 +1,11 @@
+inst/doc
+dev/
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+*.Rproj
+.DS_Store
+.vscode/
+.Rprofile
+.Rbuildignore
