@@ -1,7 +1,6 @@
 #' Run the Shiny Application
 #'
-#' @param ... arguments to pass to golem_opts.
-#' See `?golem::get_golem_options` for more details.
+#' @param data dde  object to be used for differential expression results in the application.
 #' @inheritParams shiny::shinyApp
 #'
 #' @export
