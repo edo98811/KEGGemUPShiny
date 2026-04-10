@@ -17,10 +17,10 @@ app_server <- function(input, output, session) {
 
   # Update selectors
   updateSelectInput(session, "de_selector", choices = de_list)
-  updateSelectInput(session, "pathway_selector", choices = pathway_list)
-  updateSelectInput(session, "id_selector", choices = SummarizedExperiment::colnames(rowData(data)))
-  updateSelectInput(session, "group_selector", choices = SummarizedExperiment::colnames(colData(data)))
-  updateSelectInput(session, "assay_selector", choices = SummarizedExperiment::assayNames(data))
+  updateSelectInput(session, "pathway_selector", choices = pathway_list, selected = pathway_list[10])
+  updateSelectInput(session, "id_selector", choices = SummarizedExperiment::colnames(rowData(data)), selected = "SYMBOL")
+  updateSelectInput(session, "group_selector", choices = SummarizedExperiment::colnames(colData(data)), selected = "group")
+  updateSelectInput(session, "assay_selector", choices = SummarizedExperiment::assayNames(data), selected = "counts")
 
   # Track selected nodes in the graph
   selected_ids <- reactiveVal(character())

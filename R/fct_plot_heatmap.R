@@ -113,8 +113,13 @@ plot_heatmap <- function(
   if (group_info) {
     if (!is.null(colData(se)[[group_var]])) {
       group_factor <- as.factor(colData(se)[[group_var]])
-      group_colors <- RColorBrewer::brewer.pal(n = length(levels(group_factor)), name = "Set3")
-      names(group_colors) <- levels(group_factor)
+      group_levels <- levels(group_factor)
+      n_groups <- length(group_levels)
+      group_colors <- setNames(
+        RColorBrewer::brewer.pal(pmax(n_groups, 3), "Set3")[seq_len(n_groups)],
+        group_levels
+      ) # Ensure at least 3 colors
+      names(group_colors) <- group_levels
 
       ha_col <- ComplexHeatmap::HeatmapAnnotation(
         df = data.frame(Group = group_factor),
